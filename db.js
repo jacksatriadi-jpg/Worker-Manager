@@ -1,5 +1,5 @@
 const path = require('path');
-const fs = require('fs');
+const fs   = require('fs');
 
 const DB_PATH = path.join(__dirname, 'data.json');
 
@@ -31,7 +31,8 @@ function saveDB(db) {
     fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
-// ---- USERS ----
+// ── USERS ─────────────────────────────────────────────────────────────────────
+
 function getAllUsers() {
     const db = loadDB();
     return db.users || [];
@@ -67,7 +68,8 @@ function deleteUser(id) {
     saveDB(db);
 }
 
-// ---- WORKERS ----
+// ── WORKERS ───────────────────────────────────────────────────────────────────
+
 function getAllWorkers() {
     const db = loadDB();
     return db.workers || [];
@@ -78,31 +80,61 @@ function getWorkerById(id) {
     return (db.workers || []).find(w => w.id === id) || null;
 }
 
-function createWorker(name, workerLink, apiLink) {
+/**
+ * Buat worker baru.
+ * @param {Object} data
+ * @param {string} data.name
+ * @param {string} data.workerLink
+ * @param {string} data.apiLink
+ * @param {string} [data.screenName]
+ * @param {string} [data.gcloudCommand]
+ * @param {string} [data.cloudflareCommand]
+ * @param {string} [data.serverCommand]
+ */
+function createWorker(data) {
     const db = loadDB();
     const newWorker = {
         id: Date.now().toString(),
-        name,
-        workerLink,
-        apiLink,
-        status: 'inactive',
-        createdAt: new Date().toISOString()
+        name:             data.name,
+        workerLink:       data.workerLink       || '',
+        apiLink:          data.apiLink          || '',
+        screenName:       data.screenName       || '',
+        gcloudCommand:    data.gcloudCommand    || '',
+        cloudflareCommand:data.cloudflareCommand|| '',
+        serverCommand:    data.serverCommand    || '',
+        status:           'inactive',
+        createdAt:        new Date().toISOString()
     };
     db.workers.push(newWorker);
     saveDB(db);
     return newWorker;
 }
 
-function updateWorkerStatus(id, status) {
-    const db = loadDB();
+/**
+ * Update satu atau lebih field worker (selain id & createdAt).
+ * @param {string} id
+ * @param {Object} fields - Field yang akan diupdate
+ */
+function updateWorkerFields(id, fields) {
+    const db  = loadDB();
     const idx = db.workers.findIndex(w => w.id === id);
-    if (idx !== -1) {
-        db.workers[idx].status = status;
-        db.workers[idx].updatedAt = new Date().toISOString();
-        saveDB(db);
-        return db.workers[idx];
-    }
-    return null;
+    if (idx === -1) return null;
+    db.workers[idx] = {
+        ...db.workers[idx],
+        ...fields,
+        updatedAt: new Date().toISOString()
+    };
+    saveDB(db);
+    return db.workers[idx];
+}
+
+/**
+ * Update status worker.
+ * @param {string} id
+ * @param {string} status
+ */
+function updateWorkerStatus(id, status) {
+    return updateWorkerFields(id, { status });
 }
 
 function deleteWorker(id) {
@@ -122,6 +154,7 @@ module.exports = {
     getAllWorkers,
     getWorkerById,
     createWorker,
+    updateWorkerFields,
     updateWorkerStatus,
     deleteWorker
 };

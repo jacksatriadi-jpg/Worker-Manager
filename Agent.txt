@@ -12,7 +12,8 @@ Tema: Dark Glassmorphism (indigo/violet), serupa Dropbox bulk-signup UI.
 ## STRUKTUR FILE
 
 Worker-Manager/
-├── server.js          — Express server (API backend)
+├── server.js          — Express server (API backend + activation/deactivation logic)
+├── worker-control.js  — GNU screen management module (screen/log/command)
 ├── db.js              — JSON database module (CRUD users & workers)
 ├── data.json          — File database (dibuat otomatis, JANGAN commit)
 ├── package.json       — Dependencies Node.js
@@ -20,6 +21,7 @@ Worker-Manager/
 ├── README.md          — Dokumentasi & instruksi instalasi
 ├── .gitignore
 ├── Agent.txt          — File ini
+├── logs/              — Log output screen session (dibuat otomatis, JANGAN commit)
 └── public/
     ├── index.html     — SPA (Single Page Application)
     └── index.css      — Semua styling (Dark Glassmorphism)
@@ -115,6 +117,13 @@ DELETE /api/workers/:id      — Delete worker (Admin only)
 ✅ Responsive mobile
 ✅ setup.sh — instalasi otomatis untuk Armbian/Debian/Ubuntu
 ✅ README.md — dokumentasi lengkap dengan panduan instalasi
+✅ Alur Aktivasi Worker via GNU screen (gcloud → cloudflare → server)
+✅ Polling otomatis Link API setiap 5 detik (status machine)
+✅ Auto deaktivasi saat status IDLE (30 detik delay)
+✅ Deteksi 'Exception in thread' → otomatis Nonaktif
+✅ Edit worker (admin only, semua field)
+✅ Dashboard auto-refresh setiap 5 detik (frontend polling)
+✅ Status badge clickable untuk 'Link Siap' dan 'Selesai'
 
 ## RENCANA PENGEMBANGAN SELANJUTNYA (OPSIONAL)
 
@@ -188,6 +197,102 @@ File .env dibuat otomatis di /opt/worker-manager/.env:
 
 Untuk update aplikasi:
   sudo bash /opt/worker-manager/setup.sh  # Jalankan ulang setup.sh
+
+## WORKER FIELDS (TERBARU)
+
+Field worker di data.json:
+  name             — Nama tampilan worker
+  workerLink       — URL yang dibuka saat status clickable (Link Siap/Selesai)
+  apiLink          — URL endpoint untuk polling status (GET, return JSON)
+  screenName       — Nama GNU screen session yang digunakan
+  gcloudCommand    — Command untuk login ke Google Cloud Shell
+                     Contoh: gcloud cloud-shell ssh --configuration=protonz0002 --authorize-session
+  cloudflareCommand— Command untuk menjalankan Cloudflare tunnel
+  serverCommand    — Command untuk menjalankan server di dalam cloud shell
+  status           — Salah satu dari status di bawah
+
+## WORKER STATUS MACHINE
+
+Status dan artinya:
+  inactive     — Nonaktif (abu-abu) — default
+  preparing    — Menyiapkan (ungu, animasi pulse+spinner) — sedang aktivasi
+  ready        — Link Siap (hijau, clickable → workerLink) — API status BOOT
+  processing   — Sedang Dipakai (kuning) — API status PROCESSING/BOOT
+  finished     — Selesai, siap digunakan (hijau, clickable → workerLink) — API FINISH
+  deactivating — Menonaktifkan (merah, animasi pulse) — API IDLE, tunggu 30s
+
+Transisi otomatis:
+  BOOT       → status 'ready'
+  PROCESSING → status 'processing'
+  FINISH     → status 'finished'
+  IDLE       → status 'deactivating' → (30 detik) → deactivation flow → 'inactive'
+  'Exception in thread' di log → langsung 'inactive'
+
+## ALUR AKTIVASI (server.js: activateWorker)
+
+1. Set status 'preparing'
+2. Cek screen (screen -ls), buat baru jika belum ada (screen -dmS name)
+3. Setup logging: screen -S name -p 0 -X logfile /path && log on
+4. Kirim gcloudCommand via: screen -S name -p 0 -X stuff 'cmd\n'
+5. Tunggu '@cloudshell:~$' di log (timeout 30s, retry max 3x)
+6. Kirim cloudflareCommand, tunggu '@cloudshell:~$' (timeout 60s)
+7. Kirim serverCommand
+8. Sleep 5 detik, GET apiLink, cek status response
+9. Set status (ready/processing/finished/deactivating)
+10. Detach screen (screen -S name -d)
+11. Mulai polling apiLink setiap 5 detik (startApiPolling)
+
+## ALUR DEAKTIVASI (server.js: deactivateWorker)
+
+1. Hentikan polling interval
+2. Masuk ke screen yang ada
+3. Setup logging
+4. Kirim CTRL-C (\x03) berulang (max 5x) sampai '@cloudshell:~$'
+5. Kirim 'logout\n'
+6. Detach screen
+7. Set status 'inactive'
+
+## SCREEN INTERACTION (worker-control.js)
+
+Semua command ke screen menggunakan execFile (bukan exec/shell):
+  screenExists(name)         — screen -ls | cek baris berakhiran .name
+  createScreen(name)         — screen -dmS name, tunggu 1 detik
+  setupLogging(name, path)   — truncate log, -X logfile path, -X log on
+  sendCommand(name, cmd)     — -X stuff 'cmd\n'
+  sendCtrlC(name)            — -X stuff '\x03'
+  detachScreen(name)         — screen -S name -d
+  waitForString(logFile, str, startPos, timeoutMs)
+    — baca log mulai dari startPos bytes
+    — strip ANSI codes sebelum pencocokan
+    — throw 'Timeout' atau 'Exception in thread'
+    — return posisi byte baru jika ditemukan
+
+Log file: /opt/worker-manager/logs/screen-<screenName>.log
+
+## API ENDPOINTS (TERBARU)
+
+### Workers
+  GET    /api/workers            — List semua workers
+  POST   /api/workers            — Tambah worker (Admin)
+  PUT    /api/workers/:id        — Edit worker (Admin) — semua field
+  POST   /api/workers/:id/activate   — Mulai alur aktivasi (async)
+  POST   /api/workers/:id/deactivate — Mulai alur deaktivasi (async)
+  DELETE /api/workers/:id        — Hapus worker (Admin)
+
+## RECOVERY SAAT SERVER RESTART
+
+Fungsi recoverWorkerStates() dipanggil saat server start:
+  'preparing', 'deactivating' → reset ke 'inactive'
+  'ready', 'processing', 'finished' → resume polling API
+
+## CATATAN PENTING
+
+1. GNU screen harus tersedia di sistem (apt install screen)
+2. Log file otomatis dibuat di folder logs/ (tidak di-commit)
+3. activePollIntervals (Map) dan workerLocks (Map) adalah in-memory;
+   akan hilang saat server restart (ditangani oleh recoverWorkerStates)
+4. workerLocks mencegah double-activation/deactivation
+5. Frontend auto-poll setiap 5 detik via setInterval di showApp()
 
 ═══════════════════════════════════════════════════════════════════
   END OF NOTES

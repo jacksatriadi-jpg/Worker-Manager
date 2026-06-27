@@ -152,15 +152,13 @@
                         <thead>
                             <tr>
                                 <th>Nama Worker</th>
-                                <th>Link Worker</th>
-                                <th>Link API</th>
                                 <th>Status</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="worker-tbody">
                             <tr>
-                                <td colspan="5">
+                                <td colspan="3">
                                     <div class="empty-state">
                                         <div class="empty-icon">🖥️</div>
                                         <strong>Belum ada worker</strong>
@@ -251,10 +249,14 @@
                 </div>
                 <div id="worker-form-error" class="error-msg" style="margin-bottom:1rem;"></div>
                 <form id="worker-form" onsubmit="handleAddWorker(event)">
-                    <div class="form-grid" style="margin-bottom:1.25rem;">
+                    <div class="form-grid" style="margin-bottom:1rem;">
                         <div class="form-group">
                             <label for="worker-name">Nama Worker</label>
-                            <input type="text" id="worker-name" placeholder="Contoh: Worker Alpha..." required>
+                            <input type="text" id="worker-name" placeholder="Contoh: Worker Alpha" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="worker-screen-name">Nama Screen</label>
+                            <input type="text" id="worker-screen-name" placeholder="Contoh: screen-alpha">
                         </div>
                         <div class="form-group">
                             <label for="worker-link">Link Worker</label>
@@ -262,8 +264,20 @@
                         </div>
                         <div class="form-group">
                             <label for="api-link">Link API</label>
-                            <input type="text" id="api-link" placeholder="https://api-url.com/endpoint" required>
+                            <input type="text" id="api-link" placeholder="https://api-url.com/status" required>
                         </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label for="worker-gcloud-cmd">Gcloud Command</label>
+                        <textarea id="worker-gcloud-cmd" rows="2" placeholder="gcloud cloud-shell ssh --configuration=... --authorize-session"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label for="worker-cf-cmd">Cloudflare Command</label>
+                        <textarea id="worker-cf-cmd" rows="2" placeholder="cloudflared tunnel run ..."></textarea>
+                    </div>
+                    <div class="form-group" style="margin-bottom:1.25rem;">
+                        <label for="worker-server-cmd">Server Command</label>
+                        <textarea id="worker-server-cmd" rows="2" placeholder="node server.js atau bash start.sh ..."></textarea>
                     </div>
                     <button type="submit" class="btn btn-primary" id="add-worker-btn">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -305,483 +319,627 @@
 </div>
 
 <!-- ══════════════════════════════════════════
-     CONFIRM DELETE MODAL
+     EDIT WORKER MODAL (Admin only)
 ══════════════════════════════════════════ -->
-<div class="modal-overlay" id="confirm-modal">
-    <div class="modal-box" style="max-width:380px;">
+<div class="modal-overlay" id="edit-worker-modal">
+    <div class="modal-box" style="max-width:640px;">
         <div class="modal-header">
-            <div class="modal-title" style="color:#f87171;">
-                ⚠️ Konfirmasi Hapus
+            <div class="modal-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.4rem;vertical-align:middle;">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Edit Worker
             </div>
-            <button class="modal-close" onclick="closeConfirmModal()">✕</button>
+            <button class="modal-close" onclick="closeEditWorkerModal()">✕</button>
         </div>
         <div class="modal-body">
-            <p style="font-size:0.9rem;color:#a1a1aa;" id="confirm-message">Apakah Anda yakin ingin menghapus ini?</p>
+            <input type="hidden" id="edit-worker-id">
+            <div id="edit-worker-error" class="error-msg" style="margin-bottom:1rem;"></div>
+            <div class="form-grid" style="margin-bottom:1rem;">
+                <div class="form-group">
+                    <label for="edit-worker-name">Nama Worker</label>
+                    <input type="text" id="edit-worker-name" placeholder="Nama Worker" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-worker-screen">Nama Screen</label>
+                    <input type="text" id="edit-worker-screen" placeholder="Nama screen session">
+                </div>
+                <div class="form-group">
+                    <label for="edit-worker-link">Link Worker</label>
+                    <input type="text" id="edit-worker-link" placeholder="https://worker-url.com">
+                </div>
+                <div class="form-group">
+                    <label for="edit-worker-api">Link API</label>
+                    <input type="text" id="edit-worker-api" placeholder="https://api-url.com/status">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0.75rem;">
+                <label for="edit-gcloud-cmd">Gcloud Command</label>
+                <textarea id="edit-gcloud-cmd" rows="2" placeholder="gcloud cloud-shell ssh ..."></textarea>
+            </div>
+            <div class="form-group" style="margin-bottom:0.75rem;">
+                <label for="edit-cf-cmd">Cloudflare Command</label>
+                <textarea id="edit-cf-cmd" rows="2" placeholder="cloudflared tunnel run ..."></textarea>
+            </div>
+            <div class="form-group" style="margin-bottom:0.5rem;">
+                <label for="edit-server-cmd">Server Command</label>
+                <textarea id="edit-server-cmd" rows="2" placeholder="node server.js ..."></textarea>
+            </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeConfirmModal()">Batal</button>
-            <button class="btn btn-danger" id="confirm-ok-btn">Hapus</button>
+            <button class="btn btn-ghost" onclick="closeEditWorkerModal()">Batal</button>
+            <button class="btn btn-primary" id="save-edit-worker-btn" onclick="handleEditWorker()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Simpan
+            </button>
         </div>
     </div>
 </div>
 
-<!-- Toast container -->
-<div class="toast-container" id="toast-container"></div>
+<!-- ══════════════════════════════════════════
+     CONFIRM MODAL
+══════════════════════════════════════════ -->
+<div class="modal-overlay" id="confirm-modal">
+    <div class="modal-box" style="max-width:420px;">
+        <div class="modal-header">
+            <div class="modal-title" id="confirm-modal-title">Konfirmasi</div>
+            <button class="modal-close" onclick="closeConfirmModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <p id="confirm-modal-message" style="color:var(--color-text-secondary);line-height:1.6;"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeConfirmModal()">Batal</button>
+            <button class="btn btn-danger" id="confirm-ok-btn">Ya, Lanjutkan</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     TOAST CONTAINER
+══════════════════════════════════════════ -->
+<div id="toast-container"></div>
 
 <!-- ══════════════════════════════════════════
      JAVASCRIPT
 ══════════════════════════════════════════ -->
 <script>
-// ─── STATE ────────────────────────────────────
+// ─── STATE ────────────────────────────────────────────────────────────────────
 let currentUser = null;
-let workers = [];
-let users = [];
-let confirmCallback = null;
+let workers     = [];
+let users       = [];
+let dashboardPollInterval = null;
 
-// ─── INIT ─────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async () => {
-    await checkSession();
-});
-
-async function checkSession() {
-    try {
-        const res = await fetch('/api/me');
-        if (res.ok) {
-            const data = await res.json();
-            currentUser = data.user;
-            showApp();
-        } else {
-            showLogin();
-        }
-    } catch (e) {
-        showLogin();
-    }
+// ─── UTILITIES ────────────────────────────────────────────────────────────────
+function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
 }
 
-// ─── PAGE SWITCHING ────────────────────────────
-function showLogin() {
-    document.getElementById('login-page').style.display = 'flex';
-    document.getElementById('app-page').classList.remove('visible');
-    currentUser = null;
+async function apiFetch(url, options = {}) {
+    const res  = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+    const data = await res.json();
+    return { ok: res.ok, status: res.status, data };
 }
 
-function showApp() {
-    document.getElementById('login-page').style.display = 'none';
-    document.getElementById('app-page').classList.add('visible');
-
-    // Set user display
-    const nameEl = document.getElementById('user-name-display');
-    const avatarEl = document.getElementById('user-avatar');
-    nameEl.textContent = currentUser.username;
-    avatarEl.textContent = currentUser.username.charAt(0).toUpperCase();
-
-    // Show settings tab only for admin
-    if (currentUser.role === 'admin') {
-        document.getElementById('tab-settings-btn').style.display = 'flex';
-    } else {
-        document.getElementById('tab-settings-btn').style.display = 'none';
-    }
-
-    // Load data
-    loadWorkers();
-    if (currentUser.role === 'admin') {
-        loadUsers();
-    }
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(type, title, message, duration = 4000) {
+    const icons = {
+        success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️'
+    };
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <div class="toast-icon">${icons[type] || 'ℹ️'}</div>
+        <div class="toast-content">
+            <div class="toast-title">${escHtml(title)}</div>
+            ${message ? `<div class="toast-message">${escHtml(message)}</div>` : ''}
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, duration);
 }
 
-// ─── TAB SWITCHING ────────────────────────────
-function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+// ─── CONFIRM MODAL ────────────────────────────────────────────────────────────
+let _confirmCallback = null;
 
-    document.getElementById(`tab-${tab}-btn`).classList.add('active');
-    document.getElementById(`tab-${tab}`).classList.add('active');
+function openConfirm(message, onOk, title = 'Konfirmasi') {
+    document.getElementById('confirm-modal-title').textContent   = title;
+    document.getElementById('confirm-modal-message').textContent = message;
+    _confirmCallback = onOk;
+    document.getElementById('confirm-ok-btn').onclick = () => {
+        closeConfirmModal();
+        if (_confirmCallback) _confirmCallback();
+    };
+    document.getElementById('confirm-modal').classList.add('active');
 }
 
-// ─── LOGIN ────────────────────────────────────
+function closeConfirmModal() {
+    document.getElementById('confirm-modal').classList.remove('active');
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    btn.disabled = true;
+    btn.textContent = 'Masuk...';
+
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
-    const btn = document.getElementById('login-btn');
-    const errEl = document.getElementById('login-error');
+    const errEl    = document.getElementById('login-error');
+    errEl.style.display = 'none';
 
-    errEl.classList.remove('show');
-    btn.innerHTML = '<span class="spinner"></span> Masuk...';
-    btn.disabled = true;
+    const { ok, data } = await apiFetch('/api/login', {
+        method: 'POST', body: JSON.stringify({ username, password })
+    });
 
-    try {
-        const res = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-            currentUser = data.user;
-            showApp();
-            showToast('success', 'Berhasil Masuk', `Selamat datang, ${data.user.username}!`);
-        } else {
-            errEl.textContent = data.error || 'Login gagal';
-            errEl.classList.add('show');
-        }
-    } catch (err) {
-        errEl.textContent = 'Terjadi kesalahan jaringan.';
-        errEl.classList.add('show');
+    if (ok) {
+        currentUser = data.user;
+        showApp();
+    } else {
+        errEl.textContent = data.error || 'Login gagal';
+        errEl.style.display = 'block';
     }
 
-    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Masuk`;
     btn.disabled = false;
+    btn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+        </svg> Masuk`;
 });
 
-// ─── LOGOUT ───────────────────────────────────
 async function handleLogout() {
-    await fetch('/api/logout', { method: 'POST' });
-    showLogin();
-    showToast('info', 'Keluar', 'Anda telah berhasil keluar.');
+    await apiFetch('/api/logout', { method: 'POST' });
+    currentUser = null;
+    stopDashboardPolling();
+    document.getElementById('app-page').style.display  = 'none';
+    document.getElementById('login-page').style.display = 'flex';
+    document.getElementById('login-username').value = '';
+    document.getElementById('login-password').value = '';
 }
 
-// ─── WORKERS ──────────────────────────────────
-async function loadWorkers() {
-    try {
-        const res = await fetch('/api/workers');
-        if (!res.ok) return;
-        const data = await res.json();
-        workers = data.workers || [];
-        renderWorkers();
-        updateStats();
-    } catch (e) {
-        console.error('Failed to load workers:', e);
+// ─── APP SHELL ────────────────────────────────────────────────────────────────
+function showApp() {
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app-page').style.display  = 'block';
+
+    const initials = (currentUser.username || 'A')[0].toUpperCase();
+    document.getElementById('user-avatar').textContent       = initials;
+    document.getElementById('user-name-display').textContent = currentUser.username;
+
+    // Show Settings tab for admin
+    const settingsBtn = document.getElementById('tab-settings-btn');
+    settingsBtn.style.display = currentUser.role === 'admin' ? 'inline-flex' : 'none';
+
+    loadWorkers();
+    if (currentUser.role === 'admin') loadUsers();
+    startDashboardPolling();
+    showToast('success', 'Berhasil Masuk', `Selamat datang, ${currentUser.username}!`);
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    document.getElementById(`tab-${tab}-btn`).classList.add('active');
+}
+
+// ─── DASHBOARD POLLING ────────────────────────────────────────────────────────
+function startDashboardPolling() {
+    stopDashboardPolling();
+    dashboardPollInterval = setInterval(() => {
+        if (currentUser) loadWorkers(true); // silent refresh
+    }, 5000);
+}
+
+function stopDashboardPolling() {
+    if (dashboardPollInterval) {
+        clearInterval(dashboardPollInterval);
+        dashboardPollInterval = null;
     }
 }
 
-function renderWorkers() {
-    const tbody = document.getElementById('worker-tbody');
+// ─── WORKERS ──────────────────────────────────────────────────────────────────
+async function loadWorkers(silent = false) {
+    const { ok, data } = await apiFetch('/api/workers');
+    if (!ok) return;
+
+    workers = data.workers || [];
+
+    // Stats
+    const active   = workers.filter(w => !['inactive'].includes(w.status)).length;
+    const inactive = workers.filter(w => w.status === 'inactive').length;
+    document.getElementById('stat-total').textContent   = workers.length;
+    document.getElementById('stat-active').textContent  = active;
+    document.getElementById('stat-inactive').textContent = inactive;
+
+    renderWorkerTable();
+}
+
+function renderStatusBadge(worker) {
+    const { status, workerLink } = worker;
+
+    const map = {
+        inactive:     { label: 'Nonaktif',             cls: 'inactive',    clickable: false },
+        preparing:    { label: 'Menyiapkan',           cls: 'preparing',   clickable: false, spinner: true },
+        ready:        { label: '↗ Link Siap',           cls: 'ready',       clickable: true  },
+        processing:   { label: 'Sedang Dipakai',        cls: 'processing',  clickable: false },
+        finished:     { label: '↗ Selesai, siap digunakan', cls: 'finished', clickable: true },
+        deactivating: { label: 'Menonaktifkan',         cls: 'deactivating',clickable: false },
+    };
+
+    const info = map[status] || map.inactive;
+    const link = escHtml(workerLink || '#');
+
+    if (info.clickable && workerLink) {
+        return `<a href="${link}" target="_blank" rel="noopener" class="badge ${info.cls}" title="Buka Link Worker">${info.label}</a>`;
+    }
+    if (info.spinner) {
+        return `<span class="badge ${info.cls}"><span class="spinner-sm"></span>${info.label}</span>`;
+    }
+    return `<span class="badge ${info.cls}">${info.label}</span>`;
+}
+
+function renderWorkerTable() {
+    const tbody   = document.getElementById('worker-tbody');
+    const isAdmin = currentUser && currentUser.role === 'admin';
 
     if (workers.length === 0) {
-        tbody.innerHTML = `
-            <tr><td colspan="5">
-                <div class="empty-state">
-                    <div class="empty-icon">🖥️</div>
-                    <strong>Belum ada worker</strong>
-                    <p>Tambah worker melalui tab Pengaturan</p>
-                </div>
-            </td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3">
+            <div class="empty-state">
+                <div class="empty-icon">🖥️</div>
+                <strong>Belum ada worker</strong>
+                <p>Tambah worker melalui tab Pengaturan</p>
+            </div>
+        </td></tr>`;
         return;
     }
 
-    tbody.innerHTML = workers.map(w => `
-        <tr data-id="${w.id}">
-            <td><span class="worker-name">${escHtml(w.name)}</span></td>
-            <td><span class="worker-link" title="${escHtml(w.workerLink)}">${escHtml(w.workerLink)}</span></td>
-            <td><span class="worker-link" title="${escHtml(w.apiLink)}">${escHtml(w.apiLink)}</span></td>
-            <td>
-                <span class="badge ${w.status === 'active' ? 'active' : 'inactive'}">
-                    <span class="badge-dot"></span>
-                    ${w.status === 'active' ? 'Aktif' : 'Nonaktif'}
-                </span>
-            </td>
+    tbody.innerHTML = workers.map(w => {
+        const canActivate   = w.status === 'inactive';
+        const canDeactivate = ['ready','processing','finished','preparing'].includes(w.status);
+        const isLocked      = ['preparing','deactivating'].includes(w.status);
+
+        const activateBtn = canActivate
+            ? `<button class="btn btn-success btn-sm" onclick="activateWorker('${w.id}')" title="Aktivasi Worker">
+                ▷ Aktivasi
+               </button>`
+            : '';
+
+        const stopBtn = canDeactivate
+            ? `<button class="btn btn-danger btn-sm" onclick="stopWorker('${w.id}')" title="Hentikan Worker" ${isLocked ? 'disabled' : ''}>
+                ⬛ Hentikan
+               </button>`
+            : '';
+
+        const editBtn = isAdmin
+            ? `<button class="btn btn-ghost btn-sm" onclick="showEditWorker('${escHtml(w.id)}')" title="Edit Worker">
+                ✏️
+               </button>`
+            : '';
+
+        const detailBtn = `<button class="btn btn-ghost btn-sm" onclick="showWorkerDetail('${escHtml(w.id)}')" title="Detail">
+            Detail
+        </button>`;
+
+        const deleteBtn = isAdmin
+            ? `<button class="btn btn-ghost btn-sm" style="color:#f87171;" onclick="deleteWorker('${escHtml(w.id)}','${escHtml(w.name)}')" title="Hapus Worker">
+                🗑
+               </button>`
+            : '';
+
+        return `<tr>
+            <td style="font-weight:600;">${escHtml(w.name)}</td>
+            <td>${renderStatusBadge(w)}</td>
             <td>
                 <div class="action-group">
-                    ${w.status !== 'active' ? `
-                    <button class="btn btn-success btn-sm" onclick="setWorkerStatus('${w.id}', 'active')" title="Aktivasi">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        Aktivasi
-                    </button>` : ''}
-                    ${w.status === 'active' ? `
-                    <button class="btn btn-danger btn-sm" onclick="setWorkerStatus('${w.id}', 'inactive')" title="Hentikan">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                        Hentikan
-                    </button>` : ''}
-                    <button class="btn btn-info btn-sm" onclick="showWorkerDetail('${w.id}')" title="Detail">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                        Detail
-                    </button>
-                    ${currentUser && currentUser.role === 'admin' ? `
-                    <button class="btn btn-ghost btn-sm" onclick="deleteWorker('${w.id}', '${escHtml(w.name)}')" title="Hapus">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                    </button>` : ''}
+                    ${activateBtn}${stopBtn}${detailBtn}${editBtn}${deleteBtn}
                 </div>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 }
 
-function updateStats() {
-    const total = workers.length;
-    const active = workers.filter(w => w.status === 'active').length;
-    const inactive = total - active;
-    document.getElementById('stat-total').textContent = total;
-    document.getElementById('stat-active').textContent = active;
-    document.getElementById('stat-inactive').textContent = inactive;
-}
-
-async function setWorkerStatus(id, status) {
-    try {
-        const res = await fetch(`/api/workers/${id}/status`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status })
-        });
-        if (res.ok) {
-            await loadWorkers();
-            showToast('success', 'Status Diperbarui', `Worker berhasil ${status === 'active' ? 'diaktifkan' : 'dihentikan'}.`);
-        }
-    } catch (e) {
-        showToast('error', 'Gagal', 'Terjadi kesalahan saat memperbarui status.');
+// ─── ACTIVATE / DEACTIVATE ────────────────────────────────────────────────────
+async function activateWorker(id) {
+    const { ok, data } = await apiFetch(`/api/workers/${id}/activate`, { method: 'POST' });
+    if (ok) {
+        showToast('info', 'Aktivasi Dimulai', 'Worker sedang dalam proses aktivasi...');
+        await loadWorkers(true);
+    } else {
+        showToast('error', 'Gagal', data.error || 'Tidak bisa mengaktifkan worker');
     }
 }
 
-function deleteWorker(id, name) {
-    openConfirm(`Hapus worker <strong>${escHtml(name)}</strong>? Tindakan ini tidak dapat dibatalkan.`, async () => {
-        try {
-            const res = await fetch(`/api/workers/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                await loadWorkers();
-                showToast('success', 'Dihapus', `Worker "${name}" berhasil dihapus.`);
+async function stopWorker(id) {
+    openConfirm(
+        'Hentikan worker ini? Proses deaktivasi akan berjalan (CTRL-C → logout).',
+        async () => {
+            const { ok, data } = await apiFetch(`/api/workers/${id}/deactivate`, { method: 'POST' });
+            if (ok) {
+                showToast('info', 'Deaktivasi Dimulai', 'Worker sedang dalam proses penghentian...');
+                await loadWorkers(true);
+            } else {
+                showToast('error', 'Gagal', data.error || 'Tidak bisa menghentikan worker');
             }
-        } catch (e) {
-            showToast('error', 'Gagal', 'Terjadi kesalahan saat menghapus worker.');
-        }
-    });
+        },
+        'Hentikan Worker'
+    );
 }
 
+// ─── WORKER DETAIL MODAL ──────────────────────────────────────────────────────
 function showWorkerDetail(id) {
-    const w = workers.find(w => w.id === id);
+    const w = workers.find(x => x.id === id);
     if (!w) return;
 
-    const body = document.getElementById('detail-modal-body');
-    body.innerHTML = `
-        <div class="detail-row">
-            <div class="detail-label">Nama Worker</div>
-            <div class="detail-value">${escHtml(w.name)}</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">Status</div>
-            <div class="detail-value">
-                <span class="badge ${w.status === 'active' ? 'active' : 'inactive'}">
-                    <span class="badge-dot"></span>
-                    ${w.status === 'active' ? 'Aktif' : 'Nonaktif'}
-                </span>
+    const statusBadge = renderStatusBadge(w);
+    const fmt = (v) => v ? `<span class="detail-value">${escHtml(v)}</span>` : '<span style="color:#52525b;">—</span>';
+
+    document.getElementById('detail-modal-body').innerHTML = `
+        <div class="detail-grid">
+            <div class="detail-row">
+                <span class="detail-label">Nama Worker</span>
+                ${fmt(w.name)}
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Status</span>
+                <span>${statusBadge}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Nama Screen</span>
+                ${fmt(w.screenName)}
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Link Worker</span>
+                ${w.workerLink ? `<a href="${escHtml(w.workerLink)}" target="_blank" class="detail-link">${escHtml(w.workerLink)}</a>` : '<span style="color:#52525b;">—</span>'}
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Link API</span>
+                ${w.apiLink ? `<a href="${escHtml(w.apiLink)}" target="_blank" class="detail-link">${escHtml(w.apiLink)}</a>` : '<span style="color:#52525b;">—</span>'}
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Gcloud Command</span>
+                ${w.gcloudCommand ? `<code class="detail-code">${escHtml(w.gcloudCommand)}</code>` : '<span style="color:#52525b;">—</span>'}
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Cloudflare Command</span>
+                ${w.cloudflareCommand ? `<code class="detail-code">${escHtml(w.cloudflareCommand)}</code>` : '<span style="color:#52525b;">—</span>'}
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Server Command</span>
+                ${w.serverCommand ? `<code class="detail-code">${escHtml(w.serverCommand)}</code>` : '<span style="color:#52525b;">—</span>'}
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Dibuat</span>
+                <span class="detail-value">${w.createdAt ? new Date(w.createdAt).toLocaleString('id-ID') : '—'}</span>
             </div>
         </div>
-        <div class="detail-row">
-            <div class="detail-label">Link Worker</div>
-            <div class="detail-value code">
-                <a href="${escHtml(w.workerLink)}" target="_blank" rel="noopener" style="color:#a5b4fc;">${escHtml(w.workerLink)}</a>
-            </div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">Link API</div>
-            <div class="detail-value code">
-                <a href="${escHtml(w.apiLink)}" target="_blank" rel="noopener" style="color:#a5b4fc;">${escHtml(w.apiLink)}</a>
-            </div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">Dibuat Pada</div>
-            <div class="detail-value">${new Date(w.createdAt).toLocaleString('id-ID')}</div>
-        </div>
-        ${w.updatedAt ? `
-        <div class="detail-row">
-            <div class="detail-label">Terakhir Diperbarui</div>
-            <div class="detail-value">${new Date(w.updatedAt).toLocaleString('id-ID')}</div>
-        </div>` : ''}
     `;
-    document.getElementById('detail-modal').classList.add('open');
+    document.getElementById('detail-modal').classList.add('active');
 }
 
 function closeDetailModal() {
-    document.getElementById('detail-modal').classList.remove('open');
+    document.getElementById('detail-modal').classList.remove('active');
 }
 
-// ─── ADD WORKER ────────────────────────────────
-async function handleAddWorker(e) {
-    e.preventDefault();
-    const name = document.getElementById('worker-name').value.trim();
-    const workerLink = document.getElementById('worker-link').value.trim();
-    const apiLink = document.getElementById('api-link').value.trim();
-    const errEl = document.getElementById('worker-form-error');
-    const btn = document.getElementById('add-worker-btn');
+// ─── EDIT WORKER MODAL ────────────────────────────────────────────────────────
+function showEditWorker(id) {
+    const w = workers.find(x => x.id === id);
+    if (!w) return;
 
-    errEl.classList.remove('show');
-    btn.innerHTML = '<span class="spinner"></span> Menyimpan...';
-    btn.disabled = true;
+    document.getElementById('edit-worker-id').value       = w.id;
+    document.getElementById('edit-worker-name').value     = w.name        || '';
+    document.getElementById('edit-worker-screen').value   = w.screenName  || '';
+    document.getElementById('edit-worker-link').value     = w.workerLink  || '';
+    document.getElementById('edit-worker-api').value      = w.apiLink     || '';
+    document.getElementById('edit-gcloud-cmd').value      = w.gcloudCommand    || '';
+    document.getElementById('edit-cf-cmd').value          = w.cloudflareCommand|| '';
+    document.getElementById('edit-server-cmd').value      = w.serverCommand    || '';
+    document.getElementById('edit-worker-error').style.display = 'none';
 
-    try {
-        const res = await fetch('/api/workers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, workerLink, apiLink })
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-            document.getElementById('worker-form').reset();
-            await loadWorkers();
-            showToast('success', 'Worker Ditambahkan', `Worker "${name}" berhasil disimpan.`);
-        } else {
-            errEl.textContent = data.error || 'Gagal menambah worker';
-            errEl.classList.add('show');
-        }
-    } catch (err) {
-        errEl.textContent = 'Terjadi kesalahan jaringan.';
-        errEl.classList.add('show');
-    }
-
-    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Tambah Worker`;
-    btn.disabled = false;
+    document.getElementById('edit-worker-modal').classList.add('active');
 }
 
-// ─── USERS ────────────────────────────────────
-async function loadUsers() {
-    try {
-        const res = await fetch('/api/users');
-        if (!res.ok) return;
-        const data = await res.json();
-        users = data.users || [];
-        renderUsers();
-    } catch (e) {
-        console.error('Failed to load users:', e);
-    }
+function closeEditWorkerModal() {
+    document.getElementById('edit-worker-modal').classList.remove('active');
 }
 
-function renderUsers() {
-    const tbody = document.getElementById('user-tbody');
+async function handleEditWorker() {
+    const id   = document.getElementById('edit-worker-id').value;
+    const errEl = document.getElementById('edit-worker-error');
+    errEl.style.display = 'none';
 
-    if (users.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#52525b;padding:1.5rem;">Belum ada user</td></tr>`;
+    const payload = {
+        name:             document.getElementById('edit-worker-name').value.trim(),
+        workerLink:       document.getElementById('edit-worker-link').value.trim(),
+        apiLink:          document.getElementById('edit-worker-api').value.trim(),
+        screenName:       document.getElementById('edit-worker-screen').value.trim(),
+        gcloudCommand:    document.getElementById('edit-gcloud-cmd').value.trim(),
+        cloudflareCommand:document.getElementById('edit-cf-cmd').value.trim(),
+        serverCommand:    document.getElementById('edit-server-cmd').value.trim(),
+    };
+
+    if (!payload.name || !payload.workerLink || !payload.apiLink) {
+        errEl.textContent    = 'Nama, Link Worker, dan Link API wajib diisi.';
+        errEl.style.display  = 'block';
         return;
     }
 
-    tbody.innerHTML = users.map(u => `
-        <tr>
-            <td style="font-weight:600;color:#e4e4e7;">${escHtml(u.username)}</td>
+    const btn = document.getElementById('save-edit-worker-btn');
+    btn.disabled = true;
+
+    const { ok, data } = await apiFetch(`/api/workers/${id}`, {
+        method: 'PUT', body: JSON.stringify(payload)
+    });
+
+    btn.disabled = false;
+
+    if (ok) {
+        closeEditWorkerModal();
+        await loadWorkers(true);
+        showToast('success', 'Worker Diperbarui', `${payload.name} berhasil disimpan.`);
+    } else {
+        errEl.textContent   = data.error || 'Gagal menyimpan perubahan.';
+        errEl.style.display = 'block';
+    }
+}
+
+// ─── DELETE WORKER ────────────────────────────────────────────────────────────
+function deleteWorker(id, name) {
+    openConfirm(
+        `Hapus worker "${name}"? Tindakan ini tidak bisa dibatalkan.`,
+        async () => {
+            const { ok, data } = await apiFetch(`/api/workers/${id}`, { method: 'DELETE' });
+            if (ok) {
+                await loadWorkers(true);
+                showToast('success', 'Worker Dihapus', `${name} berhasil dihapus.`);
+            } else {
+                showToast('error', 'Gagal', data.error || 'Tidak bisa menghapus worker');
+            }
+        },
+        'Hapus Worker'
+    );
+}
+
+// ─── ADD WORKER ───────────────────────────────────────────────────────────────
+async function handleAddWorker(e) {
+    e.preventDefault();
+    const errEl = document.getElementById('worker-form-error');
+    errEl.style.display = 'none';
+
+    const payload = {
+        name:             document.getElementById('worker-name').value.trim(),
+        workerLink:       document.getElementById('worker-link').value.trim(),
+        apiLink:          document.getElementById('api-link').value.trim(),
+        screenName:       document.getElementById('worker-screen-name').value.trim(),
+        gcloudCommand:    document.getElementById('worker-gcloud-cmd').value.trim(),
+        cloudflareCommand:document.getElementById('worker-cf-cmd').value.trim(),
+        serverCommand:    document.getElementById('worker-server-cmd').value.trim(),
+    };
+
+    const btn = document.getElementById('add-worker-btn');
+    btn.disabled = true;
+
+    const { ok, data } = await apiFetch('/api/workers', {
+        method: 'POST', body: JSON.stringify(payload)
+    });
+
+    btn.disabled = false;
+
+    if (ok) {
+        document.getElementById('worker-form').reset();
+        await loadWorkers(true);
+        showToast('success', 'Worker Ditambahkan', `${payload.name} berhasil ditambahkan.`);
+    } else {
+        errEl.textContent   = data.error || 'Gagal menambahkan worker';
+        errEl.style.display = 'block';
+    }
+}
+
+// ─── USERS ────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+    const { ok, data } = await apiFetch('/api/users');
+    if (!ok) return;
+    users = data.users || [];
+    renderUserTable();
+}
+
+function renderUserTable() {
+    const tbody = document.getElementById('user-tbody');
+    if (users.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#52525b;padding:1.5rem;">Tidak ada user</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = users.map(u => {
+        const isSelf = currentUser && currentUser.username === u.username;
+        const badge  = u.role === 'admin'
+            ? `<span class="role-badge admin">👑 ADMIN</span>`
+            : `<span class="role-badge user">👤 USER</span>`;
+        return `<tr>
+            <td style="font-weight:600;">${escHtml(u.username)}</td>
+            <td>${badge}</td>
+            <td style="color:var(--color-text-secondary);font-size:0.85rem;">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('id-ID') : '—'}</td>
             <td>
-                <span class="role-badge ${u.role}">${u.role === 'admin' ? '👑 Admin' : '👤 User'}</span>
+                <button class="btn btn-danger btn-sm" onclick="deleteUser('${escHtml(u.id)}','${escHtml(u.username)}')" ${isSelf?'disabled title="Tidak bisa hapus diri sendiri"':''}>
+                    🗑 Hapus
+                </button>
             </td>
-            <td style="color:#71717a;font-size:0.82rem;">${new Date(u.createdAt).toLocaleDateString('id-ID')}</td>
-            <td>
-                ${u.id !== currentUser.id ? `
-                <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}', '${escHtml(u.username)}')">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-                    Hapus
-                </button>` : `<span style="font-size:0.78rem;color:#52525b;">Anda</span>`}
-            </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 }
 
 async function handleAddUser(e) {
     e.preventDefault();
-    const username = document.getElementById('new-username').value.trim();
-    const password = document.getElementById('new-password').value;
-    const role = document.getElementById('new-role').value;
-    const errEl = document.getElementById('user-form-error');
+    const errEl   = document.getElementById('user-form-error');
+    errEl.style.display = 'none';
     const btn = document.getElementById('add-user-btn');
-
-    errEl.classList.remove('show');
-    btn.innerHTML = '<span class="spinner"></span> Menyimpan...';
     btn.disabled = true;
 
-    try {
-        const res = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, role })
-        });
-        const data = await res.json();
+    const payload = {
+        username: document.getElementById('new-username').value.trim(),
+        password: document.getElementById('new-password').value,
+        role:     document.getElementById('new-role').value,
+    };
 
-        if (res.ok) {
-            document.getElementById('user-form').reset();
-            await loadUsers();
-            showToast('success', 'User Ditambahkan', `User "${username}" berhasil dibuat.`);
-        } else {
-            errEl.textContent = data.error || 'Gagal menambah user';
-            errEl.classList.add('show');
-        }
-    } catch (err) {
-        errEl.textContent = 'Terjadi kesalahan jaringan.';
-        errEl.classList.add('show');
-    }
+    const { ok, data } = await apiFetch('/api/users', {
+        method: 'POST', body: JSON.stringify(payload)
+    });
 
-    btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Tambah User`;
     btn.disabled = false;
+
+    if (ok) {
+        document.getElementById('user-form').reset();
+        await loadUsers();
+        showToast('success', 'User Ditambahkan', `${payload.username} berhasil ditambahkan.`);
+    } else {
+        errEl.textContent   = data.error || 'Gagal menambahkan user';
+        errEl.style.display = 'block';
+    }
 }
 
 function deleteUser(id, username) {
-    openConfirm(`Hapus user <strong>${escHtml(username)}</strong>? Tindakan ini tidak dapat dibatalkan.`, async () => {
-        try {
-            const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
-            if (res.ok) {
+    openConfirm(
+        `Hapus user "${username}"? Tindakan ini tidak bisa dibatalkan.`,
+        async () => {
+            const { ok, data } = await apiFetch(`/api/users/${id}`, { method: 'DELETE' });
+            if (ok) {
                 await loadUsers();
-                showToast('success', 'Dihapus', `User "${username}" berhasil dihapus.`);
+                showToast('success', 'User Dihapus', `${username} berhasil dihapus.`);
+            } else {
+                showToast('error', 'Gagal', data.error || 'Tidak bisa menghapus user');
             }
-        } catch (e) {
-            showToast('error', 'Gagal', 'Terjadi kesalahan saat menghapus user.');
-        }
-    });
+        },
+        'Hapus User'
+    );
 }
 
-// ─── CONFIRM MODAL ────────────────────────────
-function openConfirm(message, cb) {
-    document.getElementById('confirm-message').innerHTML = message;
-    confirmCallback = cb;
-    document.getElementById('confirm-modal').classList.add('open');
-}
-
-function closeConfirmModal() {
-    document.getElementById('confirm-modal').classList.remove('open');
-    confirmCallback = null;
-}
-
-document.getElementById('confirm-ok-btn').addEventListener('click', () => {
-    if (confirmCallback) {
-        confirmCallback();
-        closeConfirmModal();
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+(async () => {
+    const { ok, data } = await apiFetch('/api/me');
+    if (ok) {
+        currentUser = data.user;
+        showApp();
+    } else {
+        document.getElementById('login-page').style.display = 'flex';
     }
-});
-
-// Close modals on overlay click
-document.getElementById('detail-modal').addEventListener('click', function(e) {
-    if (e.target === this) closeDetailModal();
-});
-document.getElementById('confirm-modal').addEventListener('click', function(e) {
-    if (e.target === this) closeConfirmModal();
-});
-
-// ─── TOAST ────────────────────────────────────
-function showToast(type, title, message) {
-    const container = document.getElementById('toast-container');
-    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
-        <div class="toast-content">
-            <div class="toast-title">${escHtml(title)}</div>
-            <div class="toast-msg">${message}</div>
-        </div>
-    `;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add('out');
-        setTimeout(() => toast.remove(), 300);
-    }, 3500);
-}
-
-// ─── UTILS ────────────────────────────────────
-function escHtml(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+})();
 </script>
+
 </body>
 </html>
