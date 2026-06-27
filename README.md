@@ -3,7 +3,7 @@
 <div align="center">
 
 ![Worker Manager](https://img.shields.io/badge/Worker_Manager-v1.0.0-6366f1?style=for-the-badge&logo=node.js&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-20_LTS-339933?style=for-the-badge&logo=node.js&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-18%2B_LTS-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Armbian_%7C_Debian_%7C_Ubuntu-CE1126?style=for-the-badge&logo=linux&logoColor=white)
 ![Port](https://img.shields.io/badge/Port-8090-0ea5e9?style=for-the-badge)
 
@@ -30,6 +30,7 @@ Web UI untuk mengelola worker dan pengguna, dengan tema Dark Glassmorphism.
 | Kebutuhan | Keterangan |
 |-----------|-----------|
 | OS | Armbian / Debian / Ubuntu (ARM32, ARM64, x86_64) |
+| Node.js | v18.x atau lebih baru (v18.19.1 ✅ compatible, tidak perlu upgrade) |
 | Akses | `root` atau pengguna dengan `sudo` |
 | Koneksi | Internet (untuk download Node.js & clone repo) |
 
@@ -185,16 +186,15 @@ Script akan otomatis menjalankan `git pull` jika repository sudah ada.
 
 ## 🐛 Troubleshooting
 
-### Node.js tidak terinstall di ARM
+### Node.js tidak terinstall atau versi terlalu lama (<18)
 
 ```bash
-# Cek arsitektur
-uname -m
-# Output: armv7l (ARM32) atau aarch64 (ARM64) atau x86_64
+# Cek versi Node.js yang terinstall
+node -v
+# v18.19.1 atau lebih baru = OK, tidak perlu upgrade
 
-# NodeSource mendukung semua arsitektur di atas
-# Jika gagal, coba install manual:
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# Jika versi < 18, install manual via NodeSource:
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 ```
 

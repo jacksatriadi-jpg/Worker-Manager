@@ -13,7 +13,7 @@ GITHUB_REPO="https://github.com/jacksatriadi-jpg/Worker-Manager.git"
 APP_DIR="/opt/worker-manager"
 APP_PORT="8090"
 SERVICE_NAME="worker-manager"
-NODE_VERSION="20"          # LTS — compatible ARM32/ARM64
+NODE_VERSION="18"          # Minimum LTS — v18.x, v20.x, v22.x semuanya compatible
 APP_USER="$(whoami)"
 
 # ── WARNA ─────────────────────────────────────────────────────────────
@@ -94,13 +94,13 @@ section "Install Node.js $NODE_VERSION LTS"
 if command -v node &> /dev/null; then
     CURRENT_NODE=$(node -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
     if [ "$CURRENT_NODE" -ge "$NODE_VERSION" ] 2>/dev/null; then
-        log "Node.js $(node -v) sudah terinstall dan memenuhi syarat."
+        log "Node.js $(node -v) sudah terinstall dan memenuhi syarat (minimum v${NODE_VERSION}). Skip install."
     else
         warn "Node.js $(node -v) ditemukan tapi versi kurang dari v${NODE_VERSION}. Akan diupgrade."
         INSTALL_NODE=true
     fi
 else
-    info "Node.js belum terinstall. Menginstall..."
+    info "Node.js belum terinstall. Menginstall v${NODE_VERSION} LTS..."
     INSTALL_NODE=true
 fi
 

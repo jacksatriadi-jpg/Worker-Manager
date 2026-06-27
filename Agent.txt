@@ -163,7 +163,8 @@ uuid            — (sudah diinstall, tidak aktif digunakan, bisa untuk ID)
 Script setup.sh melakukan:
   1. apt-get update
   2. Install curl, git, wget, build-essential
-  3. Install Node.js 20 LTS via NodeSource (ARM32/ARM64/x86_64)
+  3. Install Node.js 18+ LTS via NodeSource (ARM32/ARM64/x86_64)
+     → Jika Node.js v18.x atau lebih baru sudah ada, langkah ini dilewati
   4. Clone repo dari GitHub ke /opt/worker-manager
      → Jika sudah ada: git pull (update otomatis)
   5. npm install --omit=dev
