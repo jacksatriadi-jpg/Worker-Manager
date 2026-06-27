@@ -16,6 +16,8 @@ Worker-Manager/
 ├── db.js              — JSON database module (CRUD users & workers)
 ├── data.json          — File database (dibuat otomatis, JANGAN commit)
 ├── package.json       — Dependencies Node.js
+├── setup.sh           — Script setup otomatis (Armbian/Debian/Ubuntu)
+├── README.md          — Dokumentasi & instruksi instalasi
 ├── .gitignore
 ├── Agent.txt          — File ini
 └── public/
@@ -32,7 +34,7 @@ Worker-Manager/
    atau
    > node server.js
 
-3. Buka browser: http://localhost:3000
+3. Buka browser: http://localhost:8090
 
 ## DEFAULT LOGIN
 
@@ -111,6 +113,8 @@ DELETE /api/workers/:id      — Delete worker (Admin only)
 ✅ Konfirmasi dialog sebelum hapus
 ✅ Toast notification (sukses/error/info)
 ✅ Responsive mobile
+✅ setup.sh — instalasi otomatis untuk Armbian/Debian/Ubuntu
+✅ README.md — dokumentasi lengkap dengan panduan instalasi
 
 ## RENCANA PENGEMBANGAN SELANJUTNYA (OPSIONAL)
 
@@ -149,10 +153,40 @@ uuid            — (sudah diinstall, tidak aktif digunakan, bisa untuk ID)
    console.log(bcrypt.hashSync('Bali@123', 10));
    Lalu update di db.js dan hapus data.json agar terinisialisasi ulang.
 
-4. Port default: 3000. Bisa diubah via environment variable PORT.
+4. Port default: 8090. Bisa diubah via environment variable PORT.
 
 5. Semua UI ada di public/index.html (vanilla JS, tidak pakai React/Vue).
    CSS ada di public/index.css (custom dark glassmorphism).
+
+## DEPLOYMENT (ARMBIAN / LINUX)
+
+Script setup.sh melakukan:
+  1. apt-get update
+  2. Install curl, git, wget, build-essential
+  3. Install Node.js 20 LTS via NodeSource (ARM32/ARM64/x86_64)
+  4. Clone repo dari GitHub ke /opt/worker-manager
+     → Jika sudah ada: git pull (update otomatis)
+  5. npm install --omit=dev
+  6. Buat .env (PORT=8090, SESSION_SECRET=random)
+  7. Buat & enable systemd service 'worker-manager' (autostart)
+  8. Buka port 8090 di UFW (jika UFW tersedia)
+
+Cara menjalankan setup.sh:
+  chmod +x setup.sh
+  sudo bash setup.sh
+
+Service systemd:
+  sudo systemctl status worker-manager    # Cek status
+  sudo systemctl restart worker-manager   # Restart
+  sudo journalctl -u worker-manager -f    # Lihat log
+
+File .env dibuat otomatis di /opt/worker-manager/.env:
+  PORT=8090
+  SESSION_SECRET=<random 32 hex>
+  NODE_ENV=production
+
+Untuk update aplikasi:
+  sudo bash /opt/worker-manager/setup.sh  # Jalankan ulang setup.sh
 
 ═══════════════════════════════════════════════════════════════════
   END OF NOTES

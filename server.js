@@ -5,7 +5,7 @@ const path = require('path');
 const db = require('./db');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8090;
 
 // Middleware
 app.use(express.json());
@@ -157,5 +157,6 @@ app.get('*', (req, res) => {
 // ─── START ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
     console.log(`\n🚀 Worker Manager berjalan di http://localhost:${PORT}`);
-    console.log(`   Default login: admin / Bali@123\n`);
+    console.log(`   Default login: admin / Bali@123`);
+    console.log(`   Port: ${PORT}\n`);
 });
