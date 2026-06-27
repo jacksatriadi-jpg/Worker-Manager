@@ -1,0 +1,159 @@
+═══════════════════════════════════════════════════════════════════
+  WORKER MANAGER — CATATAN UNTUK AI AGENT SELANJUTNYA
+  Dibuat: 2026-06-27 | Bahasa: Indonesia
+═══════════════════════════════════════════════════════════════════
+
+## RINGKASAN PROYEK
+
+Worker Manager adalah web app berbasis Node.js (Express) + Vanilla JS
+untuk mengelola worker (mesin/instance) dan pengguna (user).
+Tema: Dark Glassmorphism (indigo/violet), serupa Dropbox bulk-signup UI.
+
+## STRUKTUR FILE
+
+Worker-Manager/
+├── server.js          — Express server (API backend)
+├── db.js              — JSON database module (CRUD users & workers)
+├── data.json          — File database (dibuat otomatis, JANGAN commit)
+├── package.json       — Dependencies Node.js
+├── .gitignore
+├── Agent.txt          — File ini
+└── public/
+    ├── index.html     — SPA (Single Page Application)
+    └── index.css      — Semua styling (Dark Glassmorphism)
+
+## CARA MENJALANKAN
+
+1. Install dependencies:
+   > npm install
+
+2. Jalankan server:
+   > npm start
+   atau
+   > node server.js
+
+3. Buka browser: http://localhost:3000
+
+## DEFAULT LOGIN
+
+- Username : admin
+- Password : Bali@123
+- Role     : admin
+
+Hash bcrypt untuk "Bali@123" sudah di-hardcode di db.js saat inisialisasi
+data.json pertama kali dibuat.
+
+## DATABASE (data.json)
+
+Format JSON sederhana, berisi:
+{
+  "users": [
+    {
+      "id": "string (timestamp)",
+      "username": "string",
+      "password": "bcrypt hash",
+      "role": "admin" | "user",
+      "createdAt": "ISO string"
+    }
+  ],
+  "workers": [
+    {
+      "id": "string (timestamp)",
+      "name": "string",
+      "workerLink": "string (URL)",
+      "apiLink": "string (URL)",
+      "status": "active" | "inactive",
+      "createdAt": "ISO string",
+      "updatedAt": "ISO string (optional)"
+    }
+  ]
+}
+
+PENTING: Hapus data.json jika ingin reset database ke kondisi awal
+(hanya admin default yang ada).
+
+## API ENDPOINTS
+
+### Auth
+POST   /api/login            — Login (body: {username, password})
+POST   /api/logout           — Logout
+GET    /api/me               — Get current session user
+
+### Users (Admin only)
+GET    /api/users            — Get all users
+POST   /api/users            — Create user (body: {username, password, role})
+DELETE /api/users/:id        — Delete user (tidak bisa hapus diri sendiri)
+
+### Workers (Auth required)
+GET    /api/workers          — Get all workers
+POST   /api/workers          — Create worker (Admin) {name, workerLink, apiLink}
+PATCH  /api/workers/:id/status — Update status {status: "active"|"inactive"}
+DELETE /api/workers/:id      — Delete worker (Admin only)
+
+## FRONTEND (SPA)
+
+- Satu file index.html, tidak ada framework
+- State disimpan di variabel JS: currentUser, workers[], users[]
+- Session management via express-session (cookie)
+- Tab "Pengaturan" hanya muncul jika role = admin
+- Toast notification di pojok kanan bawah
+
+## FITUR YANG SUDAH ADA
+
+✅ Halaman login (auth dengan bcrypt)
+✅ Dashboard: tampilkan daftar worker + statistik
+✅ Tombol Aktivasi / Hentikan / Detail per worker
+✅ Tab Pengaturan (admin only):
+   - Tambah User (username, password, role)
+   - Hapus User (tidak bisa hapus diri sendiri)
+   - Tambah Worker (nama, link worker, link API)
+   - Hapus Worker
+✅ Konfirmasi dialog sebelum hapus
+✅ Toast notification (sukses/error/info)
+✅ Responsive mobile
+
+## RENCANA PENGEMBANGAN SELANJUTNYA (OPSIONAL)
+
+- [ ] Edit worker (update nama/link)
+- [ ] Edit password user
+- [ ] Log aktivitas worker (kapan diaktifkan/dihentikan)
+- [ ] Monitoring real-time status worker via API ping
+- [ ] Role "operator": bisa aktivasi/hentikan tapi tidak bisa edit pengaturan
+- [ ] Multi-language support (ID/EN)
+- [ ] Export data ke CSV
+- [ ] WebSocket untuk update status real-time
+- [ ] Pagination untuk daftar worker/user yang banyak
+- [ ] Dark/Light mode toggle
+
+## DEPENDENCIES
+
+express         — HTTP server & routing
+express-session — Session management (cookie-based)
+bcryptjs        — Password hashing
+uuid            — (sudah diinstall, tidak aktif digunakan, bisa untuk ID)
+
+## CATATAN TEKNIS
+
+1. Database menggunakan JSON file (data.json), bukan SQL/NoSQL.
+   Cocok untuk skala kecil. Jika perlu skala besar, migrasi ke SQLite
+   (gunakan better-sqlite3) atau MongoDB.
+
+2. Session secret ("worker-manager-secret-2024") harus diganti dengan
+   variabel environment di production:
+   process.env.SESSION_SECRET || 'fallback-secret'
+
+3. bcrypt hash untuk "Bali@123" yang di-hardcode:
+   $2a$10$SFubiddOHvxUtEmuZ1PC/OJr6zLUbNEHbhChQOTC7SzsPQRI9IkXC
+   Jika hash tidak cocok, generate ulang dengan:
+   const bcrypt = require('bcryptjs');
+   console.log(bcrypt.hashSync('Bali@123', 10));
+   Lalu update di db.js dan hapus data.json agar terinisialisasi ulang.
+
+4. Port default: 3000. Bisa diubah via environment variable PORT.
+
+5. Semua UI ada di public/index.html (vanilla JS, tidak pakai React/Vue).
+   CSS ada di public/index.css (custom dark glassmorphism).
+
+═══════════════════════════════════════════════════════════════════
+  END OF NOTES
+═══════════════════════════════════════════════════════════════════
