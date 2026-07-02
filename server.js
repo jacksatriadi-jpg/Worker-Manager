@@ -74,60 +74,89 @@ function stopPollInterval(workerId) {
 
 // ─── POLLING API (per worker) ─────────────────────────────────────────────────
 /**
- * Mulai polling Link API setiap 5 detik.
+ * Mulai polling Link API setiap 5 detik untuk worker tertentu.
+ *
+ * Bekerja untuk SEMUA status worker (termasuk 'inactive') sehingga
+ * worker yang dijalankan secara manual (bukan via web) tetap terdeteksi.
+ *
  * Transisi status:
- *   BOOT / PROCESSING → 'processing'
- *   FINISH            → 'finished'
- *   IDLE              → 'deactivating' → tunggu 30s → deactivateWorker()
- * Juga memantau log screen untuk "Exception in thread".
+ *   API BOOT        → 'ready'        (baru saja start, siap diakses)
+ *   API PROCESSING  → 'processing'   (sedang dipakai)
+ *   API FINISH      → 'finished'     (selesai, siap digunakan lagi)
+ *   API IDLE        → 'deactivating' → tunggu 30s → deactivateWorker()
+ *                     (hanya jika status saat ini BUKAN 'inactive')
+ *
+ * Juga memantau log screen untuk "Exception in thread" (status non-inactive).
  */
 function startApiPolling(workerId, worker) {
     stopPollInterval(workerId);
 
-    const logFile    = wc.getLogFile(worker.screenName);
-    let   lastLogPos = wc.getFilePosition(logFile);
+    const logFile    = worker.screenName ? wc.getLogFile(worker.screenName) : null;
+    let   lastLogPos = logFile ? wc.getFilePosition(logFile) : 0;
 
     const intervalId = setInterval(async () => {
-        // Jika di-lock, skip
+        // Jika sedang diproses (aktivasi/deaktivasi), skip
         if (workerLocks.get(workerId)) return;
 
         const current = db.getWorkerById(workerId);
-        if (!current || current.status === 'inactive') {
+        if (!current) {
+            // Worker sudah dihapus, hentikan polling
             stopPollInterval(workerId);
             return;
         }
 
-        // Cek log screen untuk Exception
-        try {
-            const newLog = wc.readFileFromPos(logFile, lastLogPos);
-            if (newLog.length > 0) {
-                lastLogPos += Buffer.byteLength(newLog, 'utf8');
-                if (wc.stripAnsi(newLog).includes('Exception in thread')) {
-                    console.log(`[Worker ${workerId}] Exception in thread detected`);
-                    stopPollInterval(workerId);
-                    db.updateWorkerStatus(workerId, 'inactive');
-                    return;
+        // Cek log screen untuk 'Exception in thread' (hanya saat aktif)
+        if (logFile && current.status !== 'inactive') {
+            try {
+                const newLog = wc.readFileFromPos(logFile, lastLogPos);
+                if (newLog.length > 0) {
+                    lastLogPos += Buffer.byteLength(newLog, 'utf8');
+                    if (wc.stripAnsi(newLog).includes('Exception in thread')) {
+                        console.log(`[Worker ${workerId}] Exception in thread detected`);
+                        db.updateWorkerStatus(workerId, 'inactive');
+                        // Tetap lanjutkan polling (agar deteksi manual restart)
+                        return;
+                    }
                 }
-            }
-        } catch {}
+            } catch {}
+        }
 
         // Cek Link API
+        if (!current.apiLink) return;
         try {
             const resp = await checkApiLink(current.apiLink);
-            if (!resp) return;
+            if (!resp) return; // API tidak bisa dijangkau, coba lagi nanti
 
-            const status = resp.status;
+            const apiStatus = resp.status;
+            const curStatus = current.status;
 
-            if (status === 'PROCESSING' || status === 'BOOT') {
-                if (current.status !== 'processing')
+            if (apiStatus === 'BOOT') {
+                // Server baru saja start → status 'ready'
+                if (curStatus !== 'ready') {
+                    console.log(`[Worker ${workerId}] API BOOT detected (cur: ${curStatus}) → ready`);
+                    db.updateWorkerStatus(workerId, 'ready');
+                }
+
+            } else if (apiStatus === 'PROCESSING') {
+                // Sedang dipakai → 'processing'
+                if (curStatus !== 'processing') {
+                    console.log(`[Worker ${workerId}] API PROCESSING detected (cur: ${curStatus}) → processing`);
                     db.updateWorkerStatus(workerId, 'processing');
+                }
 
-            } else if (status === 'FINISH') {
-                if (current.status !== 'finished')
+            } else if (apiStatus === 'FINISH') {
+                if (curStatus !== 'finished') {
+                    console.log(`[Worker ${workerId}] API FINISH detected (cur: ${curStatus}) → finished`);
                     db.updateWorkerStatus(workerId, 'finished');
+                }
 
-            } else if (status === 'IDLE') {
-                if (current.status !== 'deactivating') {
+            } else if (apiStatus === 'IDLE') {
+                if (curStatus === 'inactive') {
+                    // Sudah nonaktif, abaikan IDLE
+                    return;
+                }
+                if (curStatus !== 'deactivating') {
+                    console.log(`[Worker ${workerId}] API IDLE detected (cur: ${curStatus}) → deactivating`);
                     db.updateWorkerStatus(workerId, 'deactivating');
                     stopPollInterval(workerId);
                     // Tunggu 30 detik lalu jalankan deactivation
@@ -312,6 +341,13 @@ async function deactivateWorker(workerId, worker) {
         db.updateWorkerStatus(workerId, 'inactive');
     } finally {
         workerLocks.set(workerId, false);
+        // Restart polling setelah deaktivasi selesai, agar bisa deteksi
+        // bila user menjalankan worker ini secara manual di kemudian hari
+        const freshWorker = db.getWorkerById(workerId);
+        if (freshWorker && freshWorker.apiLink) {
+            startApiPolling(workerId, freshWorker);
+            console.log(`[Worker ${workerId}] Polling restarted after deactivation`);
+        }
     }
 }
 
@@ -319,17 +355,22 @@ async function deactivateWorker(workerId, worker) {
 /**
  * Saat server restart:
  * - Status 'preparing' / 'deactivating' → reset ke 'inactive' (transient state)
- * - Status 'ready' / 'processing' / 'finished' → resume polling API
+ * - Semua worker yang punya apiLink → mulai polling (termasuk yg 'inactive')
+ *   sehingga worker yang dijalankan manual tetap terdeteksi.
  */
 function recoverWorkerStates() {
     const workers = db.getAllWorkers();
     for (const w of workers) {
+        // Reset transient states
         if (['preparing', 'deactivating'].includes(w.status)) {
             db.updateWorkerStatus(w.id, 'inactive');
-            console.log(`[Recovery] Worker ${w.id} reset to inactive`);
-        } else if (['ready', 'processing', 'finished'].includes(w.status)) {
-            startApiPolling(w.id, w);
-            console.log(`[Recovery] Worker ${w.id} polling resumed (status: ${w.status})`);
+            console.log(`[Recovery] Worker ${w.id} (${w.name}) reset to inactive`);
+        }
+        // Mulai polling untuk semua worker yang punya apiLink
+        if (w.apiLink) {
+            const fresh = db.getWorkerById(w.id); // ambil setelah reset
+            startApiPolling(w.id, fresh);
+            console.log(`[Recovery] Worker ${w.id} (${w.name}) polling started (status: ${fresh.status})`);
         }
     }
 }

@@ -217,16 +217,20 @@ Status dan artinya:
   inactive     — Nonaktif (abu-abu) — default
   preparing    — Menyiapkan (ungu, animasi pulse+spinner) — sedang aktivasi
   ready        — Link Siap (hijau, clickable → workerLink) — API status BOOT
-  processing   — Sedang Dipakai (kuning) — API status PROCESSING/BOOT
+  processing   — Sedang Dipakai (kuning) — API status PROCESSING (bukan BOOT)
   finished     — Selesai, siap digunakan (hijau, clickable → workerLink) — API FINISH
   deactivating — Menonaktifkan (merah, animasi pulse) — API IDLE, tunggu 30s
 
 Transisi otomatis:
-  BOOT       → status 'ready'
-  PROCESSING → status 'processing'
+  BOOT       → status 'ready'       (baru saja start)
+  PROCESSING → status 'processing'  (sedang dipakai)
   FINISH     → status 'finished'
   IDLE       → status 'deactivating' → (30 detik) → deactivation flow → 'inactive'
   'Exception in thread' di log → langsung 'inactive'
+
+  Catatan: Semua worker dengan apiLink di-poll setiap 5 detik, TERMASUK
+  yang sedang 'inactive'. Ini memungkinkan deteksi worker yang dijalankan
+  secara manual (bukan via web UI).
 
 ## ALUR AKTIVASI (server.js: activateWorker)
 
